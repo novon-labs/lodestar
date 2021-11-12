@@ -113,6 +113,8 @@ export class PeerManager {
 
   private seenPeers = new Set<string>();
 
+  private firstHearbeat = true;
+
   constructor(modules: PeerManagerModules, opts: PeerManagerOpts) {
     this.libp2p = modules.libp2p;
     this.logger = modules.logger;
@@ -389,7 +391,9 @@ export class PeerManager {
       }
     }
 
-    if (this.discovery) {
+    // don't want to use discv5 right after it started bc the transport may not be ready at that time
+    // see https://github.com/ChainSafe/lodestar/issues/3423
+    if (this.discovery && !this.firstHearbeat) {
       try {
         this.discovery.discoverPeers(peersToConnect, queriesMerged);
       } catch (e) {
@@ -400,6 +404,8 @@ export class PeerManager {
     for (const peer of peersToDisconnect) {
       void this.goodbyeAndDisconnect(peer, GoodByeReasonCode.TOO_MANY_PEERS);
     }
+
+    this.firstHearbeat = false;
   }
 
   private pingAndStatusTimeouts(): void {
